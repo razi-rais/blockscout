@@ -3,6 +3,9 @@ defmodule Explorer.Chain.Transaction do
 
   use Explorer.Schema
 
+  import Ecto.Query,
+    only: [join: 4]
+
   alias Ecto.Changeset
 
   alias Explorer.Chain.{
@@ -383,30 +386,56 @@ defmodule Explorer.Chain.Transaction do
   end
 
   def where_address_fields_match(query, address_hash, nil) do
+    # query
+    # |> where(
+    #   [t],
+    #   t.hash in fragment(
+    #     """
+    #     (
+    #       SELECT t0.hash AS hash
+    #       FROM transactions AS t0
+    #       WHERE t0.to_address_hash = ? OR t0.from_address_hash = ? OR t0.created_contract_address_hash = ?
+    #     )
+    #     UNION
+    #     (
+    #       SELECT tt.transaction_hash AS hash
+    #       FROM token_transfers AS tt
+    #       WHERE tt.to_address_hash = ? OR tt.from_address_hash = ?
+    #     )
+    #     """,
+    #     ^address_hash.bytes,
+    #     ^address_hash.bytes,
+    #     ^address_hash.bytes,
+    #     ^address_hash.bytes,
+    #     ^address_hash.bytes
+    #   )
+    # )
     query
-    |> where(
-      [t],
-      t.hash in fragment(
-        """
-        (
-          SELECT t0.hash AS hash
-          FROM transactions AS t0
-          WHERE t0.to_address_hash = ? OR t0.from_address_hash = ? OR t0.created_contract_address_hash = ?
-        )
-        UNION
-        (
-          SELECT tt.transaction_hash AS hash
-          FROM token_transfers AS tt
-          WHERE tt.to_address_hash = ? OR tt.from_address_hash = ?
-        )
-        """,
-        ^address_hash.bytes,
-        ^address_hash.bytes,
-        ^address_hash.bytes,
-        ^address_hash.bytes,
-        ^address_hash.bytes
+    |> join(:inner, [transaction], hash in fragment(
+          """
+          WITH hashes AS (
+            (
+              SELECT t0.hash AS hash
+              FROM transactions AS t0
+              WHERE t0.to_address_hash = ? OR t0.from_address_hash = ? OR t0.created_contract_address_hash = ?
+            )
+            UNION
+            (
+              SELECT tt.transaction_hash AS hash
+              FROM token_transfers AS tt
+              WHERE tt.to_address_hash = ? OR tt.from_address_hash = ?
+            )
+          )
+          """,
+          ^address_hash.bytes,
+          ^address_hash.bytes,
+          ^address_hash.bytes,
+          ^address_hash.bytes,
+          ^address_hash.bytes
+        ),
+        on: transaction.hash = hash.hash
       )
-    )
+
   end
 
   @collated_fields ~w(block_number cumulative_gas_used gas_used index status)a
