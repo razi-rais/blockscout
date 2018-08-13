@@ -177,13 +177,68 @@ defmodule Explorer.Chain do
         options \\ []
       )
       when is_list(options) do
-    direction = Keyword.get(options, :direction)
+    # direction = Keyword.get(options, :direction)
     necessity_by_association = Keyword.get(options, :necessity_by_association, %{})
 
-    options
-    |> Keyword.get(:paging_options, @default_paging_options)
-    |> fetch_transactions()
-    |> Transaction.where_address_fields_match(address_hash, direction)
+    # options
+    # |> Keyword.get(:paging_options, @default_paging_options)
+    # |> fetch_transactions()
+    # # |> Transaction.where_address_fields_match(address_hash, direction)
+    # |> join(:inner, [transaction], matches in fragment(
+    #       """
+    #       WITH hashes AS (
+    #         (
+    #           SELECT t0.hash AS hash
+    #           FROM transactions AS t0
+    #           WHERE t0.to_address_hash = ? OR t0.from_address_hash = ? OR t0.created_contract_address_hash = ?
+    #         )
+    #         UNION
+    #         (
+    #           SELECT tt.transaction_hash AS hash
+    #           FROM token_transfers AS tt
+    #           WHERE tt.to_address_hash = ? OR tt.from_address_hash = ?
+    #         )
+    #       )
+    #       """,
+    #       ^address_hash.bytes,
+    #       ^address_hash.bytes,
+    #       ^address_hash.bytes,
+    #       ^address_hash.bytes,
+    #       ^address_hash.bytes
+    #     ),
+    #     on: transaction.hash == matches
+    #   )
+
+    query =
+      from(
+        transaction in Transaction,
+        inner_join:
+          matches in fragment(
+            """
+            WITH hashes AS (
+              (
+                SELECT t0.hash AS hash
+                FROM transactions AS t0
+                WHERE t0.to_address_hash = ? OR t0.from_address_hash = ? OR t0.created_contract_address_hash = ?
+              )
+              UNION ALL
+              (
+                SELECT tt.transaction_hash AS hash
+                FROM token_transfers AS tt
+                WHERE tt.to_address_hash = ? OR tt.from_address_hash = ?
+              )
+            )
+            """,
+            ^address_hash.bytes,
+            ^address_hash.bytes,
+            ^address_hash.bytes,
+            ^address_hash.bytes,
+            ^address_hash.bytes
+            ),
+            on: transaction.hash == matches.hash
+        )
+
+    query
     |> join_associations(necessity_by_association)
     |> Transaction.preload_token_transfers(address_hash)
     |> Repo.all()
