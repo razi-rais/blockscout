@@ -194,23 +194,14 @@ defmodule Explorer.Chain do
         _ -> [:from_address_hash, :to_address_hash, :created_contract_address_hash]
       end
       |> Enum.map(fn address_field ->
-        IO.inspect("Starting for #{address_field}")
-
-        thing =
-          paging_options
-          |> fetch_transactions()
-          |> Transaction.where_address_fields_match(address_hash, address_field)
-          |> join_associations(necessity_by_association)
-          |> Transaction.preload_token_transfers(address_hash)
-          |> Repo.all()
-          |> MapSet.new()
-
-        IO.inspect("Ending for #{address_field}")
-
-        thing
+        paging_options
+        |> fetch_transactions()
+        |> Transaction.where_address_fields_match(address_hash, address_field)
+        |> join_associations(necessity_by_association)
+        |> Transaction.preload_token_transfers(address_hash)
+        |> Repo.all()
+        |> MapSet.new()
       end)
-
-    IO.inspect("Starting for token transfers")
 
     token_transfer_matches =
       paging_options
@@ -220,8 +211,6 @@ defmodule Explorer.Chain do
       |> Transaction.preload_token_transfers(address_hash)
       |> Repo.all()
       |> MapSet.new()
-
-    IO.inspect("Ending for token transfers")
 
     transaction_matches
     |> Enum.reduce(token_transfer_matches, &MapSet.union/2)
