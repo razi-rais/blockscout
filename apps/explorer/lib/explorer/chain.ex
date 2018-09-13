@@ -215,8 +215,8 @@ defmodule Explorer.Chain do
     transaction_matches
     |> Enum.reduce(token_transfer_matches, &MapSet.union/2)
     |> MapSet.to_list()
-    |> Enum.sort_by(& &1.block_number, &>=/2)
     |> Enum.sort_by(& &1.index, &>=/2)
+    |> Enum.sort_by(& &1.block_number, &>=/2)
     |> Enum.slice(0..paging_options.page_size)
   end
 
