@@ -101,6 +101,11 @@ defmodule BlockScoutWeb.AddressViewTest do
     end
   end
 
+  test "balance_percentage/1" do
+    address = insert(:address, fetched_coin_balance: 2_524_608_000_000_000_000_000_000)
+    assert "1.00%" = AddressView.balance_percentage(address)
+  end
+
   describe "contract?/1" do
     test "with a smart contract" do
       {:ok, code} = Data.cast("0x000000000000000000000000862d67cb0773ee3f8ce7ea89b328ffea861ab3ef")
@@ -211,5 +216,12 @@ defmodule BlockScoutWeb.AddressViewTest do
 
       refute AddressView.smart_contract_with_read_only_functions?(address)
     end
+  end
+
+  test "transaction_count/1" do
+    address = insert(:address)
+    insert_list(3, :transaction, to_address: address)
+
+    assert AddressView.transaction_count(address) == 3
   end
 end

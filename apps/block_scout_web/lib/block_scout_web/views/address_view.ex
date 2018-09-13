@@ -1,11 +1,16 @@
 defmodule BlockScoutWeb.AddressView do
   use BlockScoutWeb, :view
 
-  alias Explorer.Chain.{Address, Hash, SmartContract, TokenTransfer, Transaction}
+  alias Explorer.Chain
+  alias Explorer.Chain.{Address, Hash, SmartContract, TokenTransfer, Transaction, Wei}
 
   @dialyzer :no_match
 
   def address_partial_selector(struct_to_render_from, direction, current_address, truncate \\ false)
+
+  def address_partial_selector(%Address{} = address, _, current_address, truncate) do
+    matching_address_check(current_address, address.hash, contract?(address), truncate)
+  end
 
   def address_partial_selector(%TokenTransfer{to_address: address}, :to, current_address, truncate) do
     matching_address_check(current_address, address.hash, contract?(address), truncate)
@@ -58,6 +63,15 @@ defmodule BlockScoutWeb.AddressView do
     format_wei_value(balance, :ether)
   end
 
+  def balance_percentage(%Address{fetched_coin_balance: balance}) do
+    balance
+    |> Wei.to(:ether)
+    |> Decimal.div(Decimal.new(Chain.total_supply()))
+    |> Decimal.mult(100)
+    |> Decimal.to_string()
+    |> Kernel.<>("%")
+  end
+
   def balance_block_number(%Address{fetched_coin_balance_block_number: nil}), do: ""
 
   def balance_block_number(%Address{fetched_coin_balance_block_number: fetched_coin_balance_block_number}) do
@@ -108,6 +122,10 @@ defmodule BlockScoutWeb.AddressView do
   end
 
   def trimmed_hash(_), do: ""
+
+  def transaction_count(%Address{} = address) do
+    Chain.address_to_transaction_count(address)
+  end
 
   defp matching_address_check(current_address, hash, contract?, truncate) do
     if current_address && current_address.hash == hash do
